@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citi Bike Data Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-image: url('bici.jpg'); 
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh; /* Altura mínima del 100% de la ventana */
+        }
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.85); /* Capa semitransparente para legibilidad */
+            z-index: 0;
+        }
+        body > * {
+            position: relative;
+            z-index: 1;
+        }
+        main {
+            flex: 1 0 auto; /* Hace que el main crezca para empujar el footer hacia abajo */
+        }
+        footer {
+            flex-shrink: 0; /* Evita que el footer se encoja */
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .loading-spinner { 
+            border: 4px solid #f3f3f3; 
+            border-top: 4px solid #003087; 
+            border-radius: 50%; 
+            width: 40px; 
+            height: 40px; 
+            animation: spin 1s linear infinite; 
+            margin: auto; 
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+    </style>
+</head>
+<body class="font-sans">
+    <!-- Header -->
+    <header class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <img src="Citi_Bike_logo.png" alt="Citi Bike Logo" class="h-12">
+                <h1 class="ml-4 text-2xl font-bold text-[#003087]">Data Explorer</h1>
+            </div>
+            <nav class="space-x-4">
+                <button class="tab-link text-gray-600 hover:text-[#003087] font-medium" onclick="openTab('home')">Inicio</button>
+                <button class="tab-link text-gray-600 hover:text-[#003087] font-medium" onclick="openTab('insights')">Data Insights</button>
+                <button class="tab-link text-gray-600 hover:text-[#003087] font-medium" onclick="openTab('forecast')">Forecast</button>
+                <button class="tab-link text-gray-600 hover:text-[#003087] font-medium" onclick="openTab('mapas')">Mapas</button>
+                <button class="tab-link text-gray-600 hover:text-[#003087] font-medium" onclick="openTab('clusters')">Clusters</button>
+
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Home Tab: About + Query Form -->
+        <div id="home" class="tab-content active">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-[#003087] mb-4">Citi Bike Data Explorer</h2>
+                <p class="text-gray-600 mb-4">Citi Bike Data Explorer es una herramienta diseñada para analizar y visualizar datos de uso de Citi Bike, el sistema de bicicletas compartidas de Nueva York. Desarrollado por Maximiliano Orozco y Rodolfo González, este proyecto busca proporcionar información valiosa a usuarios y analistas.</p>
+                <h3 class="text-lg font-semibold text-[#003087] mb-4">Consulta tu base de datos CitiBike</h3>
+                <form id="queryForm" class="space-y-4">
+                    <div>
+                        <label for="query" class="block text-sm font-medium text-gray-700">Ingresa tu duda</label>
+                        <textarea id="query" name="query" rows="4" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-[#003087] focus:border-[#003087]" placeholder="Ejemplo: ¿Qué tablas hay en la base de datos?"></textarea>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button type="submit" class="bg-[#003087] text-white px-4 py-2 rounded-md hover:bg-[#002a6e] transition">Enviar Consulta</button>
+                        <button type="button" onclick="document.getElementById('query').value = ''" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition">Limpiar</button>
+                    </div>
+                </form>
+                <div id="result" class="mt-6">
+                    <div id="loading" class="hidden">
+                        <div class="loading-spinner"></div>
+                        <p class="text-center text-gray-600 mt-2">Cargando...</p>
+                    </div>
+                    <div id="result-content" class="hidden">
+                        <h3 class="text-lg font-semibold text-[#003087] mb-2">Resultados</h3>
+                        <div id="result-table" class="overflow-x-auto">
+                            <!-- Results will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+<!-- Data Insights Tab -->
+<div id="insights" class="tab-content">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-[#003087] mb-4">Data Insights</h2>
+        <p class="text-gray-600 mb-4">Explora tendencias y patrones en los datos de Citi Bike.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Uso por hora -->
+            <div class="bg-gray-50 p-4 rounded-md">
+                <h3 class="text-lg font-medium text-[#003087]">¿Cómo afecta el clima a CitiBike?</h3>
+                <p class="text-gray-600">Visualiza como el clima afecta el uso de bicicletas.</p>
+                <div class="h-64 mt-4 flex items-center justify-center">
+                    <img src="clima.jpeg" alt="Uso por hora" class="max-h-full max-w-full object-contain">
+                </div>
+            </div>
+
+            <!-- Estaciones populares -->
+            <div class="bg-gray-50 p-4 rounded-md">
+                <h3 class="text-lg font-medium text-[#003087]">¿Cómo afecta el tráfico a CitiBike?</h3>
+                <p class="text-gray-600">Descubre como el tráfico afecta la cantidad de viajes.</p>
+                <div class="h-64 mt-4 flex items-center justify-center">
+                    <img src="trafico.jpeg" alt="Estaciones populares" class="max-h-full max-w-full object-contain">
+                </div>
+            </div>
+
+            
+
+            <!-- Distribución de usuarios -->
+            <div class="bg-gray-50 p-4 rounded-md">
+                <h3 class="text-lg font-medium text-[#003087]">Análisis de estaciones</h3>
+                <p class="text-gray-600">Analiza el comportamiento de las distintas estaciones por medio de un aprendizaje no supervisado (clustering).</p>
+                <div class="h-64 mt-4 flex items-center justify-center">
+                    <a href="clusters.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ver Mapa</a>        
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+        <!-- Forecast Tab -->
+        <div id="forecast" class="tab-content">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-[#003087] mb-4">Forecast</h2>
+                <p class="text-gray-600 mb-4">Explora predicciones basadas en modelos de machine learning para el uso de Citi Bike.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <h3 class="text-lg font-medium text-[#003087]">Demanda Horaria Promedio de Bicicletas por Estación (2025-2026)</h3>
+                        <p class="text-gray-600">Predicciones del número de bicicletas necesarias por estacion para anticipar la demanda basadas en datos históricos.</p>
+                        <div class="h-64 mt-4 flex items-center justify-center">
+                            <a href="grafica_interactiva_demanda.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ver Gráfica</a>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <h3 class="text-lg font-medium text-[#003087]">Demanda Mensual Total de Bicicletas por Estación (2025-2026)</h3>
+                        <p class="text-gray-600">Predicciones de la demanda mensual por cada estación. Así se pueden anicipar a necesidades por esatciones mensuales y anticipar a épocas con alta demanda</p>
+                        <div class="h-64 mt-4 flex items-center justify-center">
+                            <a href="grafica_barras_mensual_interactiva.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ver Gráfica</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Forecast Tab -->
+        <!-- Clusters Tab -->
+        <div id="clusters" class="tab-content">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-[#003087] mb-4">Clusters</h2>
+                <p class="text-gray-600 mb-4">Explora patrones identificados por medio del aprendizaje no supervisado de clustering.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <h3 class="text-lg font-medium text-[#003087]">Análisis de estaciones</h3>
+                        <p class="text-gray-600">Predicciones del número de bicicletas necesarias por estacion para anticipar la demanda basadas en datos históricos.</p>
+                        <div class="h-64 mt-4 flex items-center justify-center">
+                            <a href="cluster1.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ver Gráfica</a>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <h3 class="text-lg font-medium text-[#003087]">Análisis de estaciones en mapa</h3>
+                        <p class="text-gray-600">Analiza el comportamiento de las distintas estaciones por medio de un aprendizaje no supervisado (clustering).</p>
+                        <div class="h-64 mt-4 flex items-center justify-center">
+                            <a href="clusters.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ver Mapa</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Clusters Tab -->
+        <!-- Mapas Tab -->
+        <div id="mapas" class="tab-content">
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-[#003087] mb-4">Mapas</h2>
+                <p class="text-gray-600 mb-4">Visualiza la distribución de estaciones de Citi Bike y optimiza la redistribución de bicicletas.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Mapa de estaciones con necesidad -->
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <h3 class="text-lg font-medium text-[#003087]">Estaciones con necesidad de bicicletas</h3>
+                        <p class="text-gray-600">Identifica estaciones donde salen más viajes y cuantas bicicletas son necesarias dependiendo del dia, mes y hora. Esto se hace basandose en el clima, tráfico y demanda de viajes.</p>
+                        <div class="h-64 mt-4 flex items-center justify-center">
+                            <a href="mapa_citibike_demanda.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ver Mapa</a>
+                        </div>
+                    </div>
+
+                    <!-- Mapa de estaciones con exceso -->
+                    <div class="bg-gray-50 p-4 rounded-md">
+                        <h3 class="text-lg font-medium text-[#003087]">Estaciones con exceso de bicicletas</h3>
+                        <p class="text-gray-600">Encuentra estaciones con exceso de bicicletas para planificar su redistribución.</p>
+                        <div class="h-64 mt-4 flex items-center justify-center">
+                            <a href="mapa2.html" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Ver Mapa</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-[#003087] text-white py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <p>© 2025 Citi Bike - Maximiliano Orozco y Rodolfo González</p>
+                <div class="mt-4 md:mt-0 space-x-4">
+                    <a href="https://www.citibikenyc.com" class="hover:underline">Sitio Oficial Citi Bike</a>
+                    <a href="mailto:support@citibikeexplorer.com" class="hover:underline">Contacto</a>
+                    <a href="/privacy" class="hover:underline">Política de Privacidad</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <!-- Tab Navigation Script -->
+    <script>
+        function openTab(tabName) {
+            const tabs = document.getElementsByClassName('tab-content');
+            for (let tab of tabs) {
+                tab.classList.remove('active');
+            }
+            document.getElementById(tabName).classList.add('active');
+
+            const links = document.getElementsByClassName('tab-link');
+            for (let link of links) {
+                link.classList.remove('text-[#003087]', 'font-bold');
+                link.classList.add('text-gray-600');
+            }
+            event.currentTarget.classList.add('text-[#003087]', 'font-bold');
+            event.currentTarget.classList.remove('text-gray-600');
+        }
+    </script>
+
+    <!-- Backend Connection Script -->
+    <script>
+        document.getElementById('queryForm').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevenir el comportamiento por defecto del formulario
+    
+            // Mostrar el estado de carga
+            console.log('Iniciando solicitud...');
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('result-content').classList.add('hidden');
+    
+            const query = document.getElementById('query').value;
+    
+            try {
+                // Enviar la consulta al backend
+                console.log('Enviando solicitud al backend con query:', query);
+                const response = await fetch('https://citibike-backend.onrender.com/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query }),
+                });
+    
+                console.log('Estado de la respuesta:', response.status, response.statusText);
+    
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
+                }
+    
+                // Leer la respuesta como texto y luego parsearla
+                const rawText = await response.text();
+                console.log('Cuerpo de la respuesta (texto sin parsear):', rawText);
+    
+                const data = JSON.parse(rawText);
+                console.log('Datos procesados:', data);
+    
+                // Ocultar el estado de carga y mostrar los resultados
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('result-content').classList.remove('hidden');
+    
+                // Mostrar los resultados en una tabla
+                const resultTable = document.getElementById('result-table');
+                resultTable.innerHTML = ''; // Limpiar resultados anteriores
+    
+                if (data.response) {
+                    // Extraer solo la parte después de "Respuesta final:"
+                    const responseText = data.response;
+                    const finalResultMarker = "Respuesta final:";
+                    const markerIndex = responseText.indexOf(finalResultMarker);
+                    let finalResult = responseText;
+    
+                    if (markerIndex !== -1) {
+                        finalResult = responseText.substring(markerIndex + finalResultMarker.length).trim();
+                    }
+    
+                    // Mostrar solo el resultado final como texto
+                    resultTable.innerHTML = `<p class="text-gray-600">${finalResult}</p>`;
+                } else if (data.results && data.results.length > 0) {
+                    // Si hay datos en 'results', crear una tabla
+                    const results = data.results;
+                    const table = document.createElement('table');
+                    table.className = 'min-w-full divide-y divide-gray-200';
+                    
+                    // Crear encabezados
+                    const thead = document.createElement('thead');
+                    const headerRow = document.createElement('tr');
+                    Object.keys(results[0]).forEach(key => {
+                        const th = document.createElement('th');
+                        th.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
+                        th.textContent = key;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+    
+                    // Crear filas de datos
+                    const tbody = document.createElement('tbody');
+                    tbody.className = 'bg-white divide-y divide-gray-200';
+                    results.forEach(row => {
+                        const tr = document.createElement('tr');
+                        Object.values(row).forEach(value => {
+                            const td = document.createElement('td');
+                            td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-500';
+                            td.textContent = value;
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(tbody);
+    
+                    resultTable.appendChild(table);
+                } else {
+                    resultTable.innerHTML = '<p class="text-gray-600">No se encontraron resultados.</p>';
+                }
+            } catch (error) {
+                // Manejo de errores
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('result-content').classList.remove('hidden');
+                document.getElementById('result-table').innerHTML = '<p class="text-red-600">Error al procesar la consulta: ' + error.message + '</p>';
+                console.error('Error:', error); // Depuración adicional
+            }
+        });
+    </script>
+</body>
+</html>
